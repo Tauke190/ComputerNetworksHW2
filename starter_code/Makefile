@@ -1,6 +1,3 @@
-#Reference
-#http://makepp.sourceforge.net/1.19/makepp_tutorial.html
-
 CC = gcc -c
 SHELL = /bin/bash
 
@@ -9,38 +6,46 @@ CFLAGS = -Wall -I.
 
 LINKER = gcc -o
 # linking flags here
-LFLAGS   = -Wall
+LFLAGS = -Wall
 
-OBJDIR = ../obj
+OBJDIR = ../objects
+SENDER_OBJDIR = $(OBJDIR)/sender
+RECEIVER_OBJDIR = $(OBJDIR)/receiver
 
-CLIENT_OBJECTS := $(OBJDIR)/rdt_sender.o $(OBJDIR)/common.o $(OBJDIR)/packet.o
-SERVER_OBJECTS := $(OBJDIR)/rdt_receiver.o $(OBJDIR)/common.o $(OBJDIR)/packet.o
+SENDER_OBJECTS := $(SENDER_OBJDIR)/rdt_sender.o $(SENDER_OBJDIR)/common.o $(SENDER_OBJDIR)/packet.o
+RECEIVER_OBJECTS := $(RECEIVER_OBJDIR)/rdt_receiver.o $(RECEIVER_OBJDIR)/common.o $(RECEIVER_OBJDIR)/packet.o
 
-#Program name
-CLIENT := $(OBJDIR)/rdt_sender
-SERVER := $(OBJDIR)/rdt_receiver
+# Program name
+SENDER := $(SENDER_OBJDIR)/rdt_sender
+RECEIVER := $(RECEIVER_OBJDIR)/rdt_receiver
 
-rm       = rm -f
-rmdir    = rmdir 
+rm = rm -f
+rmdir = rmdir
 
-TARGET:	$(OBJDIR) $(CLIENT)	$(SERVER)
+TARGET: $(SENDER_OBJDIR) $(RECEIVER_OBJDIR) $(SENDER) $(RECEIVER)
 
+$(SENDER): $(SENDER_OBJECTS)
+	$(LINKER) $@ $(SENDER_OBJECTS)
+	@echo "Sender link complete!"
 
-$(CLIENT):	$(CLIENT_OBJECTS)
-	$(LINKER)  $@  $(CLIENT_OBJECTS)
-	@echo "Link complete!"
+$(RECEIVER): $(RECEIVER_OBJECTS)
+	$(LINKER) $@ $(RECEIVER_OBJECTS)
+	@echo "Receiver link complete!"
 
-$(SERVER): $(SERVER_OBJECTS)
-	$(LINKER)  $@  $(SERVER_OBJECTS)
-	@echo "Link complete!"
+$(SENDER_OBJDIR)/%.o: %.c common.h packet.h
+	$(CC) $(CFLAGS) $< -o $@
+	@echo "Sender compilation complete!"
 
-$(OBJDIR)/%.o:	%.c common.h packet.h
-	$(CC) $(CFLAGS)  $< -o $@
-	@echo "Compilation complete!"
+$(RECEIVER_OBJDIR)/%.o: %.c common.h packet.h
+	$(CC) $(CFLAGS) $< -o $@
+	@echo "Receiver compilation complete!"
 
 clean:
-	@if [ -a $(OBJDIR) ]; then rm -r $(OBJDIR); fi;
+	@if [ -d $(OBJDIR) ]; then rm -r $(OBJDIR); fi;
 	@echo "Cleanup complete!"
 
-$(OBJDIR):
-	@[ -a $(OBJDIR) ]  || mkdir $(OBJDIR)
+$(SENDER_OBJDIR):
+	@[ -d $(SENDER_OBJDIR) ] || mkdir -p $(SENDER_OBJDIR)
+
+$(RECEIVER_OBJDIR):
+	@[ -d $(RECEIVER_OBJDIR) ] || mkdir -p $(RECEIVER_OBJDIR)

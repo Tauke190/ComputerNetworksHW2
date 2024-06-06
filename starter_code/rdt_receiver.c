@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
         recvpkt = (tcp_packet *) buffer;
         assert(get_data_size(recvpkt) <= DATA_SIZE);
 
-        if (recvpkt->hdr.data_size == anticipated_sequence){
+        if (recvpkt->hdr.seqno == anticipated_sequence){
 
                 if (recvpkt->hdr.data_size == 0) {
                     //VLOG(INFO, "End Of File has been reached");
@@ -134,7 +134,9 @@ int main(int argc, char **argv) {
                 }
 
 
-        }  
+        }
+   
+       
     }
 
     return 0;

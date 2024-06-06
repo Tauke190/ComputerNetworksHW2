@@ -30,17 +30,17 @@ tcp_packet *recvpkt;
 sigset_t sigmask;       
 
 
-void resend_packets(int sig)
-{
-    if (sig == SIGALRM)
-    {
-        //Resend all packets range between 
-        //sendBase and nextSeqNum
-        VLOG(INFO, "Timout happend");
-        if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, 
-                    ( const struct sockaddr *)&serveraddr, serverlen) < 0)
-        {
-            error("sendto");
+void resend_packets(int sig) {
+    if (sig == SIGALRM) {
+        VLOG(INFO, "Timeout happened");
+        for (int i = send_base; i < next_seqno; i++) {
+            if (sndpkt[i % WINDOW_SIZE] != NULL) {
+                if (sendto(sockfd, sndpkt[i % WINDOW_SIZE], TCP_HDR_SIZE + get_data_size(sndpkt[i % WINDOW_SIZE]), 0,
+                    (const struct sockaddr *)&serveraddr, serverlen) < 0) {
+                    error("sendto");
+                }
+                VLOG(INFO, "Resending packet %d", sndpkt[i % WINDOW_SIZE]->hdr.seqno);
+            }
         }
     }
 }
@@ -143,7 +143,7 @@ int main (int argc, char **argv)
             memcpy(sndpkt[next_seqno % WINDOW_SIZE]->data, buffer, len); // Storing the payload data in the packet while reading the file 
             sndpkt[next_seqno % WINDOW_SIZE]->hdr.seqno = send_base;
 
-              next_seqno++;
+            next_seqno++;
             //Wait for ACK
             do {
                 VLOG(DEBUG, "Sending packet %d to %s", 
@@ -153,13 +153,17 @@ int main (int argc, char **argv)
                 * will assign a random port number so that server can send its
                 * response to the src port.
                 */
-                if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, 
+                if(sendto(sockfd, sndpkt[next_seqno % WINDOW_SIZE], TCP_HDR_SIZE + get_data_size(sndpkt), 0, 
                             ( const struct sockaddr *)&serveraddr, serverlen) < 0)
                 {
                     error("sendto");
                 }
 
-                start_timer();
+                // Only start the timer for the last unacked packet
+                if(send_base == next_seqno){
+                    start_timer();
+                }
+               
                 //ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
                 //struct sockaddr *src_addr, socklen_t *addrlen);
 

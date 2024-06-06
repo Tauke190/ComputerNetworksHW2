@@ -102,14 +102,9 @@ int main(int argc, char **argv) {
 
     while (1) {
         // Send packets within the window
-        while (next_seqno < send_base + WINDOW_SIZE) {
-            len = fread(buffer, 1, DATA_SIZE, fp);
-            if (len <= 0) {
-                VLOG(INFO, "End Of File has been reached");
-                sndpkt[next_seqno % WINDOW_SIZE] = make_packet(0);
-                sendto(sockfd, sndpkt[next_seqno % WINDOW_SIZE], TCP_HDR_SIZE, 0, 
-                    (const struct sockaddr *)&serveraddr, serverlen);
-                break;
+        while ((next_seqno < send_base + WINDOW_SIZE) && (len = fread(buffer, 1, DATA_SIZE, fp) > 0)) {
+            if (len < 0) {
+                error("ERROR reading from file");
             }
 
             sndpkt[next_seqno % WINDOW_SIZE] = make_packet(len);

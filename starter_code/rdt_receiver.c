@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     struct sockaddr_in clientaddr; /* client addr */
     int optval; /* flag value for setsockopt */
     FILE *fp;
-    char buffer[MSS_SIZE];
+    char buffer[MSS_SIZE]; // Max-segment size
     struct timeval tp;
 
     /* 
@@ -42,6 +42,7 @@ int main(int argc, char **argv) {
     }
     portno = atoi(argv[1]);
 
+    // Opening the file
     fp  = fopen(argv[2], "w");
     if (fp == NULL) {
         error(argv[2]);

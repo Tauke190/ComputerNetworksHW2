@@ -153,7 +153,7 @@ int main (int argc, char **argv)
                 * will assign a random port number so that server can send its
                 * response to the src port.
                 */
-                if(sendto(sockfd, sndpkt[next_seqno % WINDOW_SIZE], TCP_HDR_SIZE + get_data_size(sndpkt), 0, 
+                if(sendto(sockfd, sndpkt[next_seqno % WINDOW_SIZE], TCP_HDR_SIZE + get_data_size(sndpkt[next_seqno % WINDOW_SIZE]), 0, 
                             ( const struct sockaddr *)&serveraddr, serverlen) < 0)
                 {
                     error("sendto");
@@ -190,3 +190,4 @@ int main (int argc, char **argv)
         free(sndpkt);
     }
     return 0;
+}

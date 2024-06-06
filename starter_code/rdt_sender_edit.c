@@ -13,6 +13,7 @@
 
 #include"packet.h"
 #include"common.h"
+#define WINDOW_SIZE 10
 
 #define STDIN_FD    0
 #define RETRY  120 //millisecond
@@ -24,7 +25,7 @@ int window_size = 1;
 int sockfd, serverlen;
 struct sockaddr_in serveraddr;
 struct itimerval timer; 
-tcp_packet *sndpkt;
+tcp_packet *sndpkt[WINDOW_SIZE];
 tcp_packet *recvpkt;
 sigset_t sigmask;       
 
@@ -124,62 +125,66 @@ int main (int argc, char **argv)
     next_seqno = 0;
     while (1)
     {
-        len = fread(buffer, 1, DATA_SIZE, fp); // Whatever fits in buffer
-        if ( len <= 0)
+        while (next_seqno < send_base + WINDOW_SIZE ) // Send 10 packets at once
         {
-            VLOG(INFO, "End Of File has been reached"); 
-            sndpkt = make_packet(0);                    // Is this connection termination ? is 0 a FYN flag ?
-            sendto(sockfd, sndpkt, TCP_HDR_SIZE,  0,
-                    (const struct sockaddr *)&serveraddr, serverlen);
-            break;
-        }
-        
-        send_base = next_seqno;
-        next_seqno = send_base + len;
-        sndpkt = make_packet(len);
-        memcpy(sndpkt->data, buffer, len); // Storing the payload data in the packet while reading the file 
-        sndpkt->hdr.seqno = send_base;
-        //Wait for ACK
-        do {
-            VLOG(DEBUG, "Sending packet %d to %s", 
-                    send_base, inet_ntoa(serveraddr.sin_addr));
-            /*
-             * If the sendto is called for the first time, the system will
-             * will assign a random port number so that server can send its
-             * response to the src port.
-             */
-            if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, 
-                        ( const struct sockaddr *)&serveraddr, serverlen) < 0)
+            len = fread(buffer, 1, DATA_SIZE, fp); // Whatever fits in buffer
+            if ( len <= 0)
             {
-                error("sendto");
+                VLOG(INFO, "End Of File has been reached"); 
+                sndpkt[next_seqno % WINDOW_SIZE] = make_packet(0);                    // Is this connection termination ? is 0 a FYN flag ?
+                sendto(sockfd, sndpkt, TCP_HDR_SIZE,  0,
+                        (const struct sockaddr *)&serveraddr, serverlen);
+                break;
             }
+            
+            send_base = next_seqno;
+            next_seqno = send_base + len;
+            sndpkt[next_seqno % WINDOW_SIZE] = make_packet(len);
+            memcpy(sndpkt[next_seqno % WINDOW_SIZE]->data, buffer, len); // Storing the payload data in the packet while reading the file 
+            sndpkt[next_seqno % WINDOW_SIZE]->hdr.seqno = send_base;
 
-            start_timer();
-            //ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
-            //struct sockaddr *src_addr, socklen_t *addrlen);
-
-            do
-            {
-                if(recvfrom(sockfd, buffer, MSS_SIZE, 0,
-                            (struct sockaddr *) &serveraddr, (socklen_t *)&serverlen) < 0)
+              next_seqno++;
+            //Wait for ACK
+            do {
+                VLOG(DEBUG, "Sending packet %d to %s", 
+                        send_base, inet_ntoa(serveraddr.sin_addr));
+                /*
+                * If the sendto is called for the first time, the system will
+                * will assign a random port number so that server can send its
+                * response to the src port.
+                */
+                if(sendto(sockfd, sndpkt, TCP_HDR_SIZE + get_data_size(sndpkt), 0, 
+                            ( const struct sockaddr *)&serveraddr, serverlen) < 0)
                 {
-                    error("recvfrom");
+                    error("sendto");
                 }
 
-                recvpkt = (tcp_packet *)buffer;
-                printf("%d \n", get_data_size(recvpkt));
-                assert(get_data_size(recvpkt) <= DATA_SIZE);
-            }while(recvpkt->hdr.ackno < next_seqno);    //ignore duplicate ACKs
-            stop_timer(); // Re-transmission is not happening. It is only stopping the time of the packet which is being ACKED
+                start_timer();
+                //ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
+                //struct sockaddr *src_addr, socklen_t *addrlen);
+
+                do
+                {
+                    if(recvfrom(sockfd, buffer, MSS_SIZE, 0,
+                                (struct sockaddr *) &serveraddr, (socklen_t *)&serverlen) < 0)
+                    {
+                        error("recvfrom");
+                    }
+
+                    recvpkt = (tcp_packet *)buffer;
+                    printf("%d \n", get_data_size(recvpkt));
+                    assert(get_data_size(recvpkt) <= DATA_SIZE);
+                }while(recvpkt->hdr.ackno < next_seqno);    //ignore duplicate ACKs
+                stop_timer(); // Re-transmission is not happening. It is only stopping the time of the packet which is being ACKED
 
 
-            /*resend pack if don't recv ACK  or if the ack number is less than the expected ( which means its previous acks */
-        } while(recvpkt->hdr.ackno != next_seqno);      
+                /*resend pack if don't recv ACK  or if the ack number is less than the expected ( which means its previous acks */
+                } while(recvpkt->hdr.ackno != next_seqno);      
 
-
+              
+            }
+        
         // Move on making the next packet and sending if you get a good ACKs
-
         free(sndpkt);
     }
     return 0;
-}

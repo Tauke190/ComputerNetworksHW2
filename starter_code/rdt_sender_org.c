@@ -173,7 +173,7 @@ int main (int argc, char **argv)
             stop_timer(); // Re-transmission is not happening. It is only stopping the time of the packet which is being ACKED
 
 
-            /*resend pack if don't recv ACK */
+            /*resend pack if don't recv ACK  or if the ack number is less than the expected ( which means its previous acks */
         } while(recvpkt->hdr.ackno != next_seqno);      
 
 

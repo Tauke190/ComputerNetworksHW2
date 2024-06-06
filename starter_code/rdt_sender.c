@@ -37,6 +37,7 @@ void resend_packets(int sig) {
                     (const struct sockaddr *)&serveraddr, serverlen) < 0) {
                     error("sendto");
                 }
+                VLOG(INFO, "Resending packet %d", sndpkt[i % WINDOW_SIZE]->hdr.seqno);
             }
         }
     }
@@ -53,9 +54,9 @@ void stop_timer() {
 
 void init_timer(int delay, void (*sig_handler)(int)) {
     signal(SIGALRM, resend_packets);
-    timer.it_interval.tv_sec = delay / 1000;    // sets an interval of the timer
-    timer.it_interval.tv_usec = (delay % 1000) * 1000;  
-    timer.it_value.tv_sec = delay / 1000;       // sets an initial value
+    timer.it_interval.tv_sec = 0;
+    timer.it_interval.tv_usec = 0;  
+    timer.it_value.tv_sec = delay / 1000;
     timer.it_value.tv_usec = (delay % 1000) * 1000;
 
     sigemptyset(&sigmask);
@@ -100,6 +101,7 @@ int main(int argc, char **argv) {
     next_seqno = 0;
 
     while (1) {
+        // Send packets within the window
         while (next_seqno < send_base + WINDOW_SIZE) {
             len = fread(buffer, 1, DATA_SIZE, fp);
             if (len <= 0) {
@@ -129,26 +131,26 @@ int main(int argc, char **argv) {
             next_seqno++;
         }
 
-        do {
-            if (recvfrom(sockfd, buffer, MSS_SIZE, 0, (struct sockaddr *) &serveraddr, (socklen_t *)&serverlen) < 0) {
-                error("recvfrom");
+        // Wait for acknowledgments
+        if (recvfrom(sockfd, buffer, MSS_SIZE, 0, (struct sockaddr *) &serveraddr, (socklen_t *)&serverlen) < 0) {
+            error("recvfrom");
+        }
+
+        recvpkt = (tcp_packet *)buffer;
+        printf("%d \n", get_data_size(recvpkt));
+        assert(get_data_size(recvpkt) <= DATA_SIZE);
+
+        if (recvpkt->hdr.ackno >= send_base) {
+            send_base = recvpkt->hdr.ackno + 1;
+            if (send_base == next_seqno) {
+                stop_timer();
+            } else {
+                start_timer();
             }
+        }
 
-            recvpkt = (tcp_packet *)buffer;
-            printf("%d \n", get_data_size(recvpkt));
-            assert(get_data_size(recvpkt) <= DATA_SIZE);
-
-            if (recvpkt->hdr.ackno > send_base) {
-                send_base = recvpkt->hdr.ackno;
-                if (send_base == next_seqno) { // Received the oldest unacked packets proceed normally
-                    stop_timer();
-                } else {    
-                    start_timer();             // If unackonwleged packet and Timeout done , retrasnmit the set of packets again
-                }
-            }
-        } while (send_base < next_seqno);
-
-        if (len <= 0) {
+        if (len <= 0 && send_base == next_seqno) {
+            VLOG(INFO, "File transfer completed.");
             break;
         }
     }

@@ -16,7 +16,7 @@
 
 #define STDIN_FD    0
 #define RETRY  120 // millisecond
-#define WINDOW_SIZE 1
+#define WINDOW_SIZE 10
 
 int next_seqno = 0; // The next sequence number of the packet to be sent by the sender
 int send_base = 0;

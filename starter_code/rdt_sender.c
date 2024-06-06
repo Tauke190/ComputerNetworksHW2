@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
 
     int eof = 0; // Flag to indicate end of file
 
-    while (1) {
+    while (eof!=1) {
         // Send packets within the window
         while (next_seqno < send_base + WINDOW_SIZE && !eof) {
             len = fread(buffer, 1, DATA_SIZE, fp);

@@ -27,6 +27,91 @@ struct itimerval timer;
 tcp_packet *sndpkt[WINDOW_SIZE];
 tcp_packet *recvpkt;
 sigset_t sigmask;
+FILE *fp;
+
+void socketIntialization(int argc, char **argv);
+void resend_packets(int sig);
+void start_timer();
+void stop_timer();
+void init_timer(int delay, void (*sig_handler)(int));
+
+
+
+int main(int argc, char **argv) {
+
+    char buffer[DATA_SIZE];
+    int len = 1;
+    assert(MSS_SIZE - TCP_HDR_SIZE > 0);
+    init_timer(RETRY, resend_packets); // This sets the timer
+    next_seqno = 0;
+    int eof = 0; // Flag to indicate end of file
+
+    // loop to send packets as long as there is window empty
+    while (1) { 
+        // Send packets within the window
+        while (next_seqno < send_base + WINDOW_SIZE && !eof) { // loop to send packets as long as there is window empty
+            len = fread(buffer, 1, DATA_SIZE, fp);
+            if (len <= 0) {
+                eof = 1; // Mark end of file
+                VLOG(INFO, "End Of File has been reached");
+                sndpkt[next_seqno % WINDOW_SIZE] = make_packet(0);
+                sndpkt[next_seqno % WINDOW_SIZE]->hdr.seqno = next_seqno;
+
+                VLOG(DEBUG, "Sending EOF packet %d to %s",
+                    next_seqno, inet_ntoa(serveraddr.sin_addr));
+
+                if (sendto(sockfd, sndpkt[next_seqno % WINDOW_SIZE], TCP_HDR_SIZE, 0,
+                    (const struct sockaddr *)&serveraddr, serverlen) < 0) {
+                    error("sendto");
+                }
+                next_seqno++; // If it is EOF packet , just increment the sequence num by 1
+                break;
+            }
+
+            send_base = next_seqno;
+            next_seqno +=len;
+
+            sndpkt[next_seqno % WINDOW_SIZE] = make_packet(len);
+            memcpy(sndpkt[next_seqno % WINDOW_SIZE]->data, buffer, len);
+            sndpkt[next_seqno % WINDOW_SIZE]->hdr.seqno = send_base; // Send the packet before the data_len is added
+
+            VLOG(DEBUG, "Sending packet %d to %s",
+                next_seqno, inet_ntoa(serveraddr.sin_addr));
+
+            if (sendto(sockfd, sndpkt[next_seqno % WINDOW_SIZE], TCP_HDR_SIZE + get_data_size(sndpkt[next_seqno % WINDOW_SIZE]), 0,
+                (const struct sockaddr *)&serveraddr, serverlen) < 0) {
+                error("sendto");
+            }
+        }
+
+        start_timer();
+
+         // Wait for acknowledgments
+        do 
+        {
+            if (recvfrom(sockfd, buffer, MSS_SIZE, 0, (struct sockaddr *) &serveraddr, (socklen_t *)&serverlen) < 0) {
+            error("recvfrom");
+            recvpkt = (tcp_packet *)buffer;
+            printf("%d \n", get_data_size(recvpkt));
+            assert(get_data_size(recvpkt) <= DATA_SIZE);
+        }
+        }while (recvpkt->hdr.ackno != next_seqno);
+        
+        // If you recieve an ack
+        printf("%d, Ack Num: %d, for (%d) \n", get_data_size(recvpkt), recvpkt->hdr.ackno, (int)(((float)recvpkt->hdr.ackno / (float)DATA_SIZE) - 0.01f));
+        // Clear the payload of the packet
+        bzero(sndpkt[next_seqno % WINDOW_SIZE]->data, sizeof(sndpkt[next_seqno % WINDOW_SIZE]->data));
+        free(sndpkt[next_seqno % WINDOW_SIZE]);
+
+        // send EOF packets but no need to ack them
+        if(len<=0){
+            // Send EOF packets 10 time hoping one will reach them
+        }
+        next_seqno = recvpkt[next_seqno % WINDOW_SIZE].hdr.ackno + recvpkt[next_seqno % WINDOW_SIZE].hdr.data_size;
+        stop_timer();
+    }
+    return 0;
+}
 
 void resend_packets(int sig) {
     if (sig == SIGALRM) {
@@ -63,11 +148,11 @@ void init_timer(int delay, void (*sig_handler)(int)) {
     sigaddset(&sigmask, SIGALRM);
 }
 
-int main(int argc, char **argv) {
+void socketIntialization(int argc, char **argv)
+{
     int portno, len;
     char *hostname;
-    char buffer[DATA_SIZE];
-    FILE *fp;
+   
 
     if (argc != 4) {
         fprintf(stderr,"usage: %s <hostname> <port> <FILE>\n", argv[0]);
@@ -84,6 +169,7 @@ int main(int argc, char **argv) {
     if (sockfd < 0)
         error("ERROR opening socket");
 
+    
     bzero((char *) &serveraddr, sizeof(serveraddr));
     serverlen = sizeof(serveraddr);
 
@@ -94,83 +180,4 @@ int main(int argc, char **argv) {
 
     serveraddr.sin_family = AF_INET;
     serveraddr.sin_port = htons(portno);
-
-    assert(MSS_SIZE - TCP_HDR_SIZE > 0);
-
-    init_timer(RETRY, resend_packets);
-    next_seqno = 0;
-
-    int eof = 0; // Flag to indicate end of file
-
-    while (eof!=1) {
-        // Send packets within the window
-        while (next_seqno < send_base + WINDOW_SIZE && !eof) {
-            len = fread(buffer, 1, DATA_SIZE, fp);
-            if (len <= 0) {
-                eof = 1; // Mark end of file
-                VLOG(INFO, "End Of File has been reached");
-                sndpkt[next_seqno % WINDOW_SIZE] = make_packet(0);
-                sndpkt[next_seqno % WINDOW_SIZE]->hdr.seqno = next_seqno;
-
-                VLOG(DEBUG, "Sending EOF packet %d to %s",
-                    next_seqno, inet_ntoa(serveraddr.sin_addr));
-
-                if (sendto(sockfd, sndpkt[next_seqno % WINDOW_SIZE], TCP_HDR_SIZE, 0,
-                    (const struct sockaddr *)&serveraddr, serverlen) < 0) {
-                    error("sendto");
-                }
-
-                if (send_base == next_seqno) {
-                    start_timer();
-                }
-
-                next_seqno++;
-                break;
-            }
-
-            sndpkt[next_seqno % WINDOW_SIZE] = make_packet(len);
-            memcpy(sndpkt[next_seqno % WINDOW_SIZE]->data, buffer, len);
-            sndpkt[next_seqno % WINDOW_SIZE]->hdr.seqno = next_seqno;
-
-            VLOG(DEBUG, "Sending packet %d to %s",
-                next_seqno, inet_ntoa(serveraddr.sin_addr));
-
-            if (sendto(sockfd, sndpkt[next_seqno % WINDOW_SIZE], TCP_HDR_SIZE + get_data_size(sndpkt[next_seqno % WINDOW_SIZE]), 0,
-                (const struct sockaddr *)&serveraddr, serverlen) < 0) {
-                error("sendto");
-            }
-
-            if (send_base == next_seqno) {
-                start_timer();
-            }
-
-            next_seqno += len;  // Increment by the length of the payload
-        }
-
-        // Wait for acknowledgments
-        if (recvfrom(sockfd, buffer, MSS_SIZE, 0, (struct sockaddr *) &serveraddr, (socklen_t *)&serverlen) < 0) {
-            error("recvfrom");
-        }
-
-        recvpkt = (tcp_packet *)buffer;
-        printf("%d \n", get_data_size(recvpkt));
-        assert(get_data_size(recvpkt) <= DATA_SIZE);
-
-        if (recvpkt->hdr.ackno >= send_base) {
-            send_base = recvpkt->hdr.ackno + 1;
-            if (send_base == next_seqno) {
-                stop_timer();
-            } else {
-                start_timer();
-            }
-        }
-
-        // Exit outer loop if EOF reached and all packets are acknowledged
-        if (eof && send_base == next_seqno) {
-            VLOG(INFO, "File transfer completed.");
-            break;
-        }
-    }
-
-    return 0;
 }

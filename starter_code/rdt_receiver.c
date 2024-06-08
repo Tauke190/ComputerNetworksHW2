@@ -12,18 +12,43 @@
 #include "common.h"
 #include "packet.h"
 
-
-/*
- * You are required to change the implementation to support
- * window size greater than one.
- * In the current implementation the window size is one, hence we have
- * only one send and receive packet
- */
+#define window_size 10
 
 tcp_packet *recvpkt;
 tcp_packet *sndpkt;
+int anticipated_window[window_size];
 
 int anticipated_sequence = 0;
+
+void fix_buffer_window() {
+    if (anticipated_window[0] != 0) {
+        anticipated_window[0] = 0;
+    }
+
+    for (int i = 1; i < window_size; i++) {
+        anticipated_window[i - 1] = anticipated_window[i];
+    }
+
+    anticipated_window[window_size - 1] = 0;
+}
+
+void fill_anticipated_window(int accepted_num, int window_counter) {
+    if (window_counter < window_size) {
+        anticipated_window[window_counter] = accepted_num;
+    } else {
+        fix_buffer_window();
+        anticipated_window[window_size - 1] = accepted_num;
+    }
+}
+
+int is_num(int seqno) {
+    for (int i = 0; i < window_size; i++) {
+        if (anticipated_window[i] == seqno) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 int main(int argc, char **argv) {
     int sockfd; /* socket */
@@ -46,7 +71,7 @@ int main(int argc, char **argv) {
     portno = atoi(argv[1]);
 
     // Opening the file
-    fp  = fopen(argv[2], "w");
+    fp = fopen(argv[2], "w");
     if (fp == NULL) {
         error(argv[2]);
     }
@@ -64,8 +89,7 @@ int main(int argc, char **argv) {
      * Eliminates "ERROR on binding: Address already in use" error. 
      */
     optval = 1;
-    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, 
-            (const void *)&optval , sizeof(int));
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (const void *)&optval, sizeof(int));
 
     /*
      * build the server's Internet address
@@ -78,8 +102,7 @@ int main(int argc, char **argv) {
     /* 
      * bind: associate the parent socket with a port 
      */
-    if (bind(sockfd, (struct sockaddr *) &serveraddr, 
-                sizeof(serveraddr)) < 0) 
+    if (bind(sockfd, (struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0) 
         error("ERROR on binding");
 
     /* 
@@ -88,34 +111,33 @@ int main(int argc, char **argv) {
     VLOG(DEBUG, "epoch time, bytes received, sequence number");
 
     clientlen = sizeof(clientaddr);
+
+    int window_counter = 0;
     while (1) {
         /*
          * recvfrom: receive a UDP datagram from a client
          */
-        //VLOG(DEBUG, "waiting from server \n");
-        if (recvfrom(sockfd, buffer, MSS_SIZE, 0,
-                (struct sockaddr *) &clientaddr, (socklen_t *)&clientlen) < 0) {
+        if (recvfrom(sockfd, buffer, MSS_SIZE, 0, (struct sockaddr *) &clientaddr, (socklen_t *)&clientlen) < 0) {
             error("ERROR in recvfrom");
         }
-        recvpkt = (tcp_packet *) buffer;
+        recvpkt = (tcp_packet *)buffer;
         assert(get_data_size(recvpkt) <= DATA_SIZE);
 
-        if (recvpkt->hdr.seqno == anticipated_sequence){
-
+        if (!is_num(recvpkt->hdr.seqno)) {
+            if (recvpkt->hdr.seqno == anticipated_sequence) {
                 if (recvpkt->hdr.data_size == 0) {
-                    //VLOG(INFO, "End Of File has been reached");
+                    // End Of File has been reached
                     fclose(fp);
                     sndpkt = make_packet(0);
                     sndpkt->hdr.data_size = -1000;
-                    if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0,
-                        (struct sockaddr *) &clientaddr, clientlen) < 0) {
+                    if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (struct sockaddr *) &clientaddr, clientlen) < 0) {
                         error("ERROR in sendto");
-
-                        }
+                    }
                     break;
                 }
-                
-                
+
+                fill_anticipated_window(anticipated_sequence, window_counter);
+
                 gettimeofday(&tp, NULL);
                 VLOG(DEBUG, "%lu, %d, %d", tp.tv_sec, recvpkt->hdr.data_size, recvpkt->hdr.seqno);
 
@@ -126,26 +148,19 @@ int main(int argc, char **argv) {
                 sndpkt = make_packet(0);
                 sndpkt->hdr.ackno = anticipated_sequence;
                 sndpkt->hdr.ctr_flags = ACK;
-                if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, 
-                        (struct sockaddr *) &clientaddr, clientlen) < 0) {
+                if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (struct sockaddr *) &clientaddr, clientlen) < 0) {
                     error("ERROR in sendto");
                 }
-
-
-        } else {
-
+                window_counter++;
+            } else {
                 sndpkt = make_packet(0);
                 sndpkt->hdr.ackno = anticipated_sequence;
                 sndpkt->hdr.ctr_flags = ACK;
-                if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, 
-                        (struct sockaddr *) &clientaddr, clientlen) < 0) {
+                if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (struct sockaddr *) &clientaddr, clientlen) < 0) {
                     error("ERROR in sendto");
                 }
-
-
+            }
         }
-   
-       
     }
 
     return 0;

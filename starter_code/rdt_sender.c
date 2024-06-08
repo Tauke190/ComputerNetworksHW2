@@ -133,7 +133,7 @@ int main(int argc, char **argv) {
                 last_packet->hdr.seqno = next_seqno;
                 last_packet->hdr.ctr_flags = -1000;
                 int counter = 0;
-                VLOG(INFO, "End Of File has been reached");
+                VLOG(INFO, "End Of File packet has been sent");
                 while (1){
 
                     if (counter == 101){

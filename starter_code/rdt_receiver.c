@@ -16,8 +16,8 @@
 
 tcp_packet *recvpkt;
 tcp_packet *sndpkt;
-int anticipated_window[WINDOW_SIZE];
-tcp_packet *packet_window[WINDOW_SIZE];
+int anticipated_window[WINDOW_SIZE] = {0};
+tcp_packet *packet_window[WINDOW_SIZE] = {NULL};
 
 int anticipated_sequence = 0;
 
@@ -74,7 +74,7 @@ void fill_received_packet_window(tcp_packet *recvpkt, int window_counter) {
 
 int get_index(tcp_packet *recvpkt) {
     for (int i = 0; i < WINDOW_SIZE; i++) {
-        if (recvpkt->hdr.seqno == packet_window[i]->hdr.seqno) {
+        if (packet_window[i] != NULL && recvpkt->hdr.seqno == packet_window[i]->hdr.seqno) {
             return i;
         }
     }
@@ -127,7 +127,8 @@ int main(int argc, char **argv) {
         if (recvfrom(sockfd, buffer, MSS_SIZE, 0, (struct sockaddr *) &clientaddr, (socklen_t *)&clientlen) < 0) {
             error("ERROR in recvfrom");
         }
-        recvpkt = (tcp_packet *)buffer;
+        recvpkt = (tcp_packet *)malloc(sizeof(tcp_packet));
+        memcpy(recvpkt, buffer, sizeof(tcp_packet));
         assert(get_data_size(recvpkt) <= DATA_SIZE);
 
         if (!is_num(recvpkt->hdr.seqno)) {
@@ -178,6 +179,7 @@ int main(int argc, char **argv) {
                 }
             }
         }
+        free(recvpkt);
     }
 
     return 0;

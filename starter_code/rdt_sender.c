@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
                 tcp_packet* last_packet = make_packet(0);
                 last_packet->hdr.seqno = next_seqno;
                 last_packet->hdr.data_size = -1000;
-                int send_packet = sendto(sockfd, last_packet, TCP_HDR_SIZE + get_data_size(last_packet), 0, (const struct sockaddr *) &serveraddr, serverlen);
+                int send_packet = sendto(sockfd, last_packet, TCP_HDR_SIZE, 0, (const struct sockaddr *) &serveraddr, serverlen);
                 if (send_packet < 0) {
                     error("Error sending the end of file packet");
                 }

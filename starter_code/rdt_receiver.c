@@ -112,13 +112,7 @@ int main(int argc, char **argv) {
                 if (recvpkt->hdr.ctr_flags == -1000) {
                     //VLOG(INFO, "End Of File has been reached");
                     fclose(fp);
-                    sndpkt = make_packet(0);
-                    sndpkt->hdr.ctr_flags = -1000;
-                    if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, 
-                        (struct sockaddr *) &clientaddr, clientlen) < 0) {
-                    error("ERROR in sendto");
-                
-                    }
+                    
                     break;
                 }
                 

@@ -132,10 +132,21 @@ int main(int argc, char **argv) {
                 tcp_packet* last_packet = make_packet(0);
                 last_packet->hdr.seqno = next_seqno;
                 last_packet->hdr.ctr_flags = -1000;
-                int send_packet = sendto(sockfd, last_packet, TCP_HDR_SIZE + get_data_size(last_packet), 0, (const struct sockaddr *) &serveraddr, serverlen);
-                if (send_packet < 0) {
-                    error("Error sending the end of file packet");
+                int counter = 0;
+                while (1){
+
+                    if (counter == 101){
+                        break;
+                    }
+
+                    int send_packet = sendto(sockfd, last_packet, TCP_HDR_SIZE + get_data_size(last_packet), 0, (const struct sockaddr *) &serveraddr, serverlen);
+                    if (send_packet < 0) {
+                        error("Error sending the end of file packet");
+                    }
+                    counter++;
+                    
                 }
+                
                 free(last_packet);
                 break_flag = 1;
                 break;
@@ -160,6 +171,11 @@ int main(int argc, char **argv) {
         if (sndpkt[0] != NULL){
             expected_ack_no = sndpkt[0]->hdr.seqno + sndpkt[0]->hdr.data_size;
         }
+
+        if (break_flag == 1){
+            break;
+        }
+
 
         start_timer();
 

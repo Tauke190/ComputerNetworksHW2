@@ -136,11 +136,13 @@ int main(int argc, char **argv) {
                 break_flag = 1;
                 break;
             }
+            
 
             tcp_packet* new_packet = make_packet(len);
             memcpy(new_packet->data, buffer, len);
             new_packet->hdr.seqno = next_seqno;
             sndpkt[window_counter] = new_packet;
+            VLOG(DEBUG, "Sending packet %d (%d) to %s", next_seqno, (int)next_seqno / (int)DATA_SIZE, inet_ntoa(serveraddr.sin_addr));
             
             int send_packet = sendto(sockfd, new_packet, TCP_HDR_SIZE + get_data_size(new_packet), 0, (const struct sockaddr *) &serveraddr, serverlen);
             if (send_packet < 0) {

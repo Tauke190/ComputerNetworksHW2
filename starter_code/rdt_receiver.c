@@ -110,9 +110,9 @@ int main(int argc, char **argv) {
         if (recvpkt->hdr.seqno == anticipated_sequence){
 
                 if (recvpkt->hdr.ctr_flags == -1000) {
-                    //VLOG(INFO, "End Of File has been reached");
+                    VLOG(INFO, "End Of File has been reached");
                     fclose(fp);
-                    
+
                     break;
                 }
                 

@@ -102,6 +102,10 @@ int main(int argc, char **argv) {
         recvpkt = (tcp_packet *) buffer;
         assert(get_data_size(recvpkt) <= DATA_SIZE);
 
+        if (recvpkt->hdr.ctr_flags == -1000){
+            break;
+        }
+
 
 
 

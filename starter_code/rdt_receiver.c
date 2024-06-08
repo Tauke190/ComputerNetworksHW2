@@ -109,6 +109,17 @@ int main(int argc, char **argv) {
                 if (recvpkt->hdr.ctr_flags == -1000) {
                     VLOG(INFO, "End Of File has been reached");
                     fclose(fp);
+                    tcp_packet* last_packet = make_packet(0);
+                    last_packet->hdr.ctr_flags = -1000;
+                    int counter = 0;
+
+                    while (counter < 101){
+                        int send_packet = sendto(sockfd, last_packet, TCP_HDR_SIZE, 0, (const struct sockaddr *) &clientaddr, clientlen);
+                        if (send_packet < 0) {
+                            error("Error sending the end of file packet");
+                        }
+                        counter++;
+                    }
 
                     break;
                 }

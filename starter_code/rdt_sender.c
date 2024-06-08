@@ -152,11 +152,9 @@ int main(int argc, char **argv) {
             next_seqno += len;
             window_counter++;
         }
-        if (break_flag == 1){
-            break;
-        }
-        if(sndpkt[1]!=NULL){
-            expected_ack_no = sndpkt[1]->hdr.seqno;
+      
+        if(sndpkt[0]!=NULL){
+            expected_ack_no = sndpkt[0]->hdr.seqno + sndpkt[0]->hdr.data_size;
         }
         start_timer();
 
@@ -170,6 +168,9 @@ int main(int argc, char **argv) {
         } while (recvpkt->hdr.ackno != expected_ack_no);
 
         stop_timer();
+        if (break_flag == 1){
+            break;
+        }
 
        
         if (recvpkt->hdr.ackno == expected_ack_no) {

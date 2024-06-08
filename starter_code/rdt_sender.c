@@ -46,6 +46,7 @@ void resend_packets(int sig) {
         VLOG(INFO, "Timeout happened");
         for (int i = 0; i < WINDOW_SIZE; i++) {
             if (sndpkt[i] != NULL) {
+                VLOG(DEBUG, "Resending pack %d, (%d)", sndpkt[i]->hdr.seqno, (int)sndpkt[i]->hdr.seqno / (int)DATA_SIZE);
                 int send_packet = sendto(sockfd, sndpkt[i], TCP_HDR_SIZE + get_data_size(sndpkt[i]), 0, (const struct sockaddr *) &serveraddr, serverlen);
                 if (send_packet < 0) {
                     error("Error sending packet");
@@ -127,7 +128,7 @@ int main(int argc, char **argv) {
         while (window_counter < WINDOW_SIZE) {
             len = fread(buffer, 1, DATA_SIZE, fp);
             if (len <= 0) {
-                VLOG(INFO, "End of file has been reached");
+            
                 tcp_packet* last_packet = make_packet(0);
                 last_packet->hdr.seqno = next_seqno;
                 int send_packet = sendto(sockfd, last_packet, TCP_HDR_SIZE + get_data_size(last_packet), 0, (const struct sockaddr *) &serveraddr, serverlen);
@@ -143,7 +144,8 @@ int main(int argc, char **argv) {
             memcpy(new_packet->data, buffer, len);
             new_packet->hdr.seqno = next_seqno;
             sndpkt[window_counter] = new_packet;
-            
+
+            VLOG(DEBUG, "Sending packet %d (%d) to %s", next_seqno, (int)next_seqno / (int)DATA_SIZE, inet_ntoa(serveraddr.sin_addr));
             
             int send_packet = sendto(sockfd, new_packet, TCP_HDR_SIZE + get_data_size(new_packet), 0, (const struct sockaddr *) &serveraddr, serverlen);
             if (send_packet < 0) {
@@ -168,8 +170,8 @@ int main(int argc, char **argv) {
             }
             recvpkt = (tcp_packet *)buffer;
             if (recvpkt->hdr.data_size == -1000){
-
                 termination_flag = 1;
+                VLOG(INFO, "End of file has been reached");
                 break;
 
             }

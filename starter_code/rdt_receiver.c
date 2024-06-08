@@ -102,20 +102,18 @@ int main(int argc, char **argv) {
         recvpkt = (tcp_packet *) buffer;
         assert(get_data_size(recvpkt) <= DATA_SIZE);
 
-        if (recvpkt->hdr.ctr_flags == -1000){
-            break;
-        }
+
 
 
 
 
         if (recvpkt->hdr.seqno == anticipated_sequence){
 
-                if (recvpkt->hdr.data_size == 0) {
+                if (recvpkt->hdr.ctr_flags == -1000) {
                     //VLOG(INFO, "End Of File has been reached");
                     fclose(fp);
                     sndpkt = make_packet(0);
-                    sndpkt->hdr.data_size = -1000;
+                    sndpkt->hdr.ctr_flags = -1000;
                     if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, 
                         (struct sockaddr *) &clientaddr, clientlen) < 0) {
                     error("ERROR in sendto");

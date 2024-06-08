@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
                 error("Error receiving packet");
             }
             recvpkt = (tcp_packet *)buffer;
-            if (recvpkt->hdr.data_size == -1000){
+            if (recvpkt->hdr.ctr_flags == -1000){
                 termination_flag = 1;
                 VLOG(INFO, "End of file has been reached");
                 break;

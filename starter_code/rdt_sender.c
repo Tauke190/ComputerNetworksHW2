@@ -31,7 +31,6 @@ void fix_buffer_window() {
     if (sndpkt[0] != NULL) {
         free(sndpkt[0]);
     }
-
     // Shift all packets to the left
     for (int i = 1; i < WINDOW_SIZE; i++) {
         sndpkt[i - 1] = sndpkt[i];

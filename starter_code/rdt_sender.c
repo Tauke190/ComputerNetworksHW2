@@ -133,7 +133,7 @@ int main(int argc, char **argv) {
                 if (send_packet < 0) {
                     error("Error sending the end of file packet");
                 }
-                free_packet(last_packet);
+                free(last_packet);
                 break_flag = 1;
                 break;
             }

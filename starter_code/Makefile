@@ -39,7 +39,7 @@ $(SENDER_OBJDIR)/%.o: %.c common.h packet.h
 $(RECEIVER_OBJDIR)/%.o: %.c common.h packet.h
 	$(CC) $(CFLAGS) $< -o $@
 	@echo "Receiver compilation complete!"
-
+	
 clean:
 	@if [ -d $(OBJDIR) ]; then rm -r $(OBJDIR); fi;
 	@echo "Cleanup complete!"

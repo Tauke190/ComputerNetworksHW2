@@ -12,8 +12,6 @@
 #include "common.h"
 #include "packet.h"
 
-#define window_size 10
-
 
 /*
  * You are required to change the implementation to support
@@ -102,9 +100,6 @@ int main(int argc, char **argv) {
         recvpkt = (tcp_packet *) buffer;
         assert(get_data_size(recvpkt) <= DATA_SIZE);
 
-
-
-
         if (recvpkt->hdr.seqno == anticipated_sequence){
 
                 if (recvpkt->hdr.data_size == 0) {
@@ -135,8 +130,6 @@ int main(int argc, char **argv) {
                         (struct sockaddr *) &clientaddr, clientlen) < 0) {
                     error("ERROR in sendto");
                 }
-                fill_new_packet(recvpkt);
-
 
 
         } else {

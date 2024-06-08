@@ -31,6 +31,7 @@ void fix_buffer_window() {
     if (sndpkt[0] != NULL) {
         free(sndpkt[0]);
     }
+
     // Shift all packets to the left
     for (int i = 1; i < WINDOW_SIZE; i++) {
         sndpkt[i - 1] = sndpkt[i];
@@ -118,10 +119,11 @@ int main(int argc, char **argv) {
     next_seqno = 0;
     int window_counter = 0;
     int break_flag = 0;
-    int expected_ack_no = next_seqno + TCP_HDR_SIZE;
+    int expected_ack_no = 0;
+    int termination_flag = 0;
 
     while (1) {
-        
+
         while (window_counter < WINDOW_SIZE) {
             len = fread(buffer, 1, DATA_SIZE, fp);
             if (len <= 0) {
@@ -136,13 +138,12 @@ int main(int argc, char **argv) {
                 break_flag = 1;
                 break;
             }
-            
 
             tcp_packet* new_packet = make_packet(len);
             memcpy(new_packet->data, buffer, len);
             new_packet->hdr.seqno = next_seqno;
             sndpkt[window_counter] = new_packet;
-            VLOG(DEBUG, "Sending packet %d (%d) to %s", next_seqno, (int)next_seqno / (int)DATA_SIZE, inet_ntoa(serveraddr.sin_addr));
+            
             
             int send_packet = sendto(sockfd, new_packet, TCP_HDR_SIZE + get_data_size(new_packet), 0, (const struct sockaddr *) &serveraddr, serverlen);
             if (send_packet < 0) {
@@ -152,12 +153,9 @@ int main(int argc, char **argv) {
             next_seqno += len;
             window_counter++;
         }
-      
-        if(sndpkt[0]!=NULL){
+
+        if (sndpkt[0] != NULL){
             expected_ack_no = sndpkt[0]->hdr.seqno + sndpkt[0]->hdr.data_size;
-        }
-        if (break_flag == 1){
-            break;
         }
 
         start_timer();
@@ -169,11 +167,22 @@ int main(int argc, char **argv) {
                 error("Error receiving packet");
             }
             recvpkt = (tcp_packet *)buffer;
+            if (recvpkt->hdr.data_size == -1000){
+
+                termination_flag = 1;
+                break;
+
+            }
         } while (recvpkt->hdr.ackno != expected_ack_no);
 
         stop_timer();
-    
-       
+
+        if (termination_flag == 1){
+            break;
+        }
+
+
+
         if (recvpkt->hdr.ackno == expected_ack_no) {
             fix_buffer_window();
             window_counter--;

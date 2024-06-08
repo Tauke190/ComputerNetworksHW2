@@ -107,11 +107,11 @@ int main(int argc, char **argv) {
                     fclose(fp);
                     sndpkt = make_packet(0);
                     sndpkt->hdr.data_size = -1000;
-                    if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, 
+                    if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0,
                         (struct sockaddr *) &clientaddr, clientlen) < 0) {
-                    error("ERROR in sendto");
-                
+                        error("ERROR in sendto");
 
+                        }
                     break;
                 }
                 

@@ -175,6 +175,17 @@ int main(int argc, char **argv) {
                 break;
 
             }
+            if (recvpkt->hdr.ackno > expected_ack_no){
+
+                int shift_count = (recvpkt->hdr.ackno - expected_ack_no) / DATA_SIZE;
+                for (int i = 0; i < shift_count; i++) {
+                    fix_buffer_window();
+                    window_counter--;
+                    expected_ack_no = recvpkt->hdr.ackno + recvpkt->hdr.data_size;
+                }
+                break;
+                
+            }
         } while (recvpkt->hdr.ackno != expected_ack_no);
 
         stop_timer();

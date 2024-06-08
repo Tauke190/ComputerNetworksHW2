@@ -152,8 +152,11 @@ int main(int argc, char **argv) {
             next_seqno += len;
             window_counter++;
         }
-         if (break_flag == 1){
+        if (break_flag == 1){
             break;
+        }
+        if(sndpkt[1]!=NULL){
+            expected_ack_no = sndpkt[1]->hdr.seqno;
         }
         start_timer();
 

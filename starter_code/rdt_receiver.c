@@ -140,11 +140,9 @@ int main(int argc, char **argv) {
                     if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (struct sockaddr *) &clientaddr, clientlen) < 0) {
                         error("ERROR in sendto");
                     }
+                    free(recvpkt);
                     break;
                 }
-
-                fill_anticipated_window(anticipated_sequence, window_counter);
-                fill_received_packet_window(recvpkt, window_counter);
 
                 gettimeofday(&tp, NULL);
                 VLOG(DEBUG, "%lu, %d, %d", tp.tv_sec, recvpkt->hdr.data_size, recvpkt->hdr.seqno);
@@ -152,6 +150,9 @@ int main(int argc, char **argv) {
                 fseek(fp, recvpkt->hdr.seqno, SEEK_SET);
                 fwrite(recvpkt->data, 1, recvpkt->hdr.data_size, fp);
                 anticipated_sequence += recvpkt->hdr.data_size;
+
+                fill_anticipated_window(anticipated_sequence, window_counter);
+                fill_received_packet_window(recvpkt, window_counter);
 
                 sndpkt = make_packet(0);
                 sndpkt->hdr.ackno = anticipated_sequence;
@@ -172,7 +173,7 @@ int main(int argc, char **argv) {
             int index = get_index(recvpkt);
             if (index >= 0) {
                 sndpkt = make_packet(0);
-                sndpkt->hdr.ackno = anticipated_window[index] + packet_window[index]->hdr.data_size;
+                sndpkt->hdr.ackno = anticipated_window[index];
                 sndpkt->hdr.ctr_flags = ACK;
                 if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, (struct sockaddr *) &clientaddr, clientlen) < 0) {
                     error("ERROR in sendto");

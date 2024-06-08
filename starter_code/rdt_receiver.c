@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
                     break;
                 }
                 
-                
+    
                 gettimeofday(&tp, NULL);
                 VLOG(DEBUG, "%lu, %d, %d", tp.tv_sec, recvpkt->hdr.data_size, recvpkt->hdr.seqno);
 

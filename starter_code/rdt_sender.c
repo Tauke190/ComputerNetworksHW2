@@ -194,6 +194,9 @@ int main(int argc, char **argv) {
 
 
             }
+            if (recvpkt->hdr.ackno < expected_ack_no){
+                break;
+            }
         } while (recvpkt->hdr.ackno != expected_ack_no);
 
         stop_timer();

@@ -181,7 +181,13 @@ int main(int argc, char **argv) {
                 for (int i = 0; i < shift_count; i++) {
                     fix_buffer_window();
                     window_counter--;
+                }
+                
+                if (sndpkt[0] != NULL){
+                    expected_ack_no = sndpkt[0]->hdr.seqno + sndpkt[0]->hdr.data_size;
+                }else{
                     expected_ack_no = recvpkt->hdr.ackno + recvpkt->hdr.data_size;
+
                 }
                 break;
                 

@@ -206,8 +206,6 @@ int main(int argc, char **argv) {
             break;
         }
 
-
-
         if (recvpkt->hdr.ackno == expected_ack_no) {
             fix_buffer_window();
             window_counter--;

@@ -21,6 +21,7 @@
  */
 tcp_packet *recvpkt;
 tcp_packet *sndpkt;
+
 int anticipated_sequence = 0;
 
 int main(int argc, char **argv) {
@@ -112,27 +113,26 @@ int main(int argc, char **argv) {
 
                 fseek(fp, recvpkt->hdr.seqno, SEEK_SET);
                 fwrite(recvpkt->data, 1, recvpkt->hdr.data_size, fp);
+                anticipated_sequence = anticipated_sequence + recvpkt->hdr.data_size;
+
                 sndpkt = make_packet(0);
-                sndpkt->hdr.ackno = recvpkt->hdr.seqno + recvpkt->hdr.data_size;
+                sndpkt->hdr.ackno = anticipated_sequence;
                 sndpkt->hdr.ctr_flags = ACK;
                 if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, 
                         (struct sockaddr *) &clientaddr, clientlen) < 0) {
                     error("ERROR in sendto");
                 }
-
-                anticipated_sequence = sndpkt->hdr.ackno;
 
 
         } else {
 
                 sndpkt = make_packet(0);
-                sndpkt->hdr.ackno = recvpkt->hdr.seqno + recvpkt->hdr.data_size;
+                sndpkt->hdr.ackno = anticipated_sequence;
                 sndpkt->hdr.ctr_flags = ACK;
                 if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, 
                         (struct sockaddr *) &clientaddr, clientlen) < 0) {
                     error("ERROR in sendto");
                 }
-
 
         }
    

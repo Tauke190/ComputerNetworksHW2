@@ -150,7 +150,9 @@ int main(int argc, char **argv) {
             next_seqno += len;
             window_counter++;
         }
-
+         if (break_flag == 1){
+            break;
+        }
         start_timer();
 
         int receive_packet;
@@ -164,10 +166,7 @@ int main(int argc, char **argv) {
 
         stop_timer();
 
-        if (break_flag == 1){
-            break;
-        }
-
+       
         if (recvpkt->hdr.ackno == expected_ack_no) {
             fix_buffer_window();
             window_counter--;

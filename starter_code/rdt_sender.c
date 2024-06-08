@@ -46,7 +46,7 @@ void resend_packets(int sig) {
         VLOG(INFO, "Timeout happened");
         for (int i = 0; i < WINDOW_SIZE; i++) {
             if (sndpkt[i] != NULL) {
-                VLOG(DEBUG, "Resending pack %d, (%d)", sndpkt[i]->hdr.seqno, (int)sndpkt[i]->hdr.seqno / (int)DATA_SIZE);
+                VLOG(DEBUG, "Resending packet %d, (%d)", sndpkt[i]->hdr.seqno, (int)sndpkt[i]->hdr.seqno / (int)DATA_SIZE);
                 int send_packet = sendto(sockfd, sndpkt[i], TCP_HDR_SIZE + get_data_size(sndpkt[i]), 0, (const struct sockaddr *) &serveraddr, serverlen);
                 if (send_packet < 0) {
                     error("Error sending packet");
@@ -122,41 +122,16 @@ int main(int argc, char **argv) {
     int break_flag = 0;
     int expected_ack_no = 0;
     int termination_flag = 0;
+    int seqno_tracker = 0; 
 
     while (1) {
-
-        while (window_counter < WINDOW_SIZE) {
-            len = fread(buffer, 1, DATA_SIZE, fp);
-            if (len <= 0) {
-            
-                tcp_packet* last_packet = make_packet(0);
-                last_packet->hdr.seqno = next_seqno;
-                last_packet->hdr.ctr_flags = -1000;
-                int counter = 0;
-                VLOG(INFO, "End Of File packet has been sent");
-                while (1){
-
-                    if (counter == 101){
-                        break;
-                    }
-
-                    int send_packet = sendto(sockfd, last_packet, TCP_HDR_SIZE + get_data_size(last_packet), 0, (const struct sockaddr *) &serveraddr, serverlen);
-                    if (send_packet < 0) {
-                        error("Error sending the end of file packet");
-                    }
-                    counter++;
-                    
-                }
-                
-                free(last_packet);
-                break_flag = 1;
-                break;
-            }
+        while (window_counter < WINDOW_SIZE && (len = fread(buffer, 1, DATA_SIZE, fp)) > 0) {
 
             tcp_packet* new_packet = make_packet(len);
             memcpy(new_packet->data, buffer, len);
             new_packet->hdr.seqno = next_seqno;
             sndpkt[window_counter] = new_packet;
+            seqno_tracker = next_seqno;
 
             VLOG(DEBUG, "Sending packet %d (%d) to %s", next_seqno, (int)next_seqno / (int)DATA_SIZE, inet_ntoa(serveraddr.sin_addr));
             
@@ -173,11 +148,6 @@ int main(int argc, char **argv) {
             expected_ack_no = sndpkt[0]->hdr.seqno + sndpkt[0]->hdr.data_size;
         }
 
-        if (break_flag == 1){
-            break;
-        }
-
-
         start_timer();
 
         int receive_packet;
@@ -191,10 +161,8 @@ int main(int argc, char **argv) {
                 termination_flag = 1;
                 VLOG(INFO, "End of file has been reached");
                 break;
-
             }
             if (recvpkt->hdr.ackno > expected_ack_no){
-
                 int shift_count = (recvpkt->hdr.ackno - expected_ack_no) / DATA_SIZE;
                 for (int i = 0; i < shift_count; i++) {
                     fix_buffer_window();
@@ -204,13 +172,9 @@ int main(int argc, char **argv) {
                 if (sndpkt[0] != NULL){
                     expected_ack_no = sndpkt[0]->hdr.seqno + sndpkt[0]->hdr.data_size;
                 }else{
-                    expected_ack_no = recvpkt->hdr.ackno + recvpkt->hdr.data_size;
-
+                    expected_ack_no = recvpkt->hdr.ackno;
                 }
                 break;
-
-
-
             }
             if (recvpkt->hdr.ackno < expected_ack_no){
                 break;
@@ -221,6 +185,22 @@ int main(int argc, char **argv) {
 
         if (termination_flag == 1){
             break;
+        }
+
+        if (len <= 0) {
+            tcp_packet* last_packet = make_packet(0);
+            last_packet->hdr.seqno = seqno_tracker;
+            last_packet->hdr.ctr_flags = -1000;
+            int counter = 0;
+            while (counter < 101){
+                int send_packet = sendto(sockfd, last_packet, TCP_HDR_SIZE + get_data_size(last_packet), 0, (const struct sockaddr *) &serveraddr, serverlen);
+                if (send_packet < 0) {
+                    error("Error sending the end of file packet");
+                }
+                counter++;
+            }
+            free(last_packet);
+            break_flag = 1;
         }
 
         if (recvpkt->hdr.ackno == expected_ack_no) {

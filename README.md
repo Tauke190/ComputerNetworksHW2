@@ -1,6 +1,6 @@
 # Implementation of a simplified Transmission Control Protocol (TCP)
 
-This project was completed as part of the Computer Networks course at NYU Abu Dhabi during the summer of 2024, under the guidance of Professor Yasir Zaki.
+This project was completed as part of the Computer Networks course at NYU Abu Dhabi during the summer of 2024, under the guidance of Professor Yasir Zaki. The team-members for this project are Aadim Nepal and Avinash Gyawali.
 
 In this project, we implemented a simplified version of TCP with the following features:
 

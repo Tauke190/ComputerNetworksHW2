@@ -1,4 +1,4 @@
-# Simple Transmission Control Protocol Implementation
+# Implementation of a simplified Transmission Control Protocol (TCP)
 
 This project was completed as part of the Computer Networks course at NYU Abu Dhabi during the summer of 2024, under the guidance of Professor Yasir Zaki.
 
@@ -22,8 +22,6 @@ In this project, we implemented a simplified version of TCP with the following f
    - The time taken for file transfer depends on the network delay and uplink/downlink loss.
    - With low downlink loss, there may be no need for retransmissions as higher ACKs can acknowledge all preceding packets.
    - As uplink and downlink loss increase, the time taken for packet transfer will also increase.
-
-Thank you!
 
 
 

@@ -11,10 +11,6 @@
 
 #include "common.h"
 #include "packet.h"
-
-#define window_size 10
-
-
 /*
  * You are required to change the implementation to support
  * window size greater than one.
@@ -25,7 +21,7 @@
 tcp_packet *recvpkt;
 tcp_packet *sndpkt;
 
-int anticipated_sequence = 0;
+int anticipated_sequence = 0; // this is the expected sequence number from the sender side towards receiver 
 
 int main(int argc, char **argv) {
     int sockfd; /* socket */
@@ -104,15 +100,16 @@ int main(int argc, char **argv) {
 
 
 
-        if (recvpkt->hdr.seqno == anticipated_sequence){
+        if (recvpkt->hdr.seqno == anticipated_sequence){ // if the expected sequence number is correct
 
-                if (recvpkt->hdr.ctr_flags == -1000) {
+                if (recvpkt->hdr.ctr_flags == -1000) { // check for end of file, if end of file has been reached then this block of code sends 100 eof flags to the receiver.
+                // my choice for 100 is because I want to be sure that even during extreme losss, atleast one signal gets picked up
                     VLOG(INFO, "End Of File has been reached");
                     fclose(fp);
                     tcp_packet* last_packet = make_packet(0);
                     last_packet->hdr.ctr_flags = -1000;
                     int counter = 0;
-
+                // sedning 101 EOF flags. 
                     while (counter < 101){
                         int send_packet = sendto(sockfd, last_packet, TCP_HDR_SIZE, 0, (const struct sockaddr *) &clientaddr, clientlen);
                         if (send_packet < 0) {
@@ -130,10 +127,11 @@ int main(int argc, char **argv) {
 
                 fseek(fp, recvpkt->hdr.seqno, SEEK_SET);
                 fwrite(recvpkt->data, 1, recvpkt->hdr.data_size, fp);
-                anticipated_sequence = anticipated_sequence + recvpkt->hdr.data_size;
-
-                sndpkt = make_packet(0);
-                sndpkt->hdr.ackno = anticipated_sequence;
+                anticipated_sequence = anticipated_sequence + recvpkt->hdr.data_size; // updated the expected sequence number for the next iteration
+                
+                // sending an Ack for the packet. 
+                sndpkt = make_packet(0); // make a packet with data size 0 because this is our ACK that we are sending 
+                sndpkt->hdr.ackno = anticipated_sequence; 
                 sndpkt->hdr.ctr_flags = ACK;
                 if (sendto(sockfd, sndpkt, TCP_HDR_SIZE, 0, 
                         (struct sockaddr *) &clientaddr, clientlen) < 0) {
@@ -144,7 +142,8 @@ int main(int argc, char **argv) {
 
 
         } else {
-
+                
+                // if its not anticipated sequence number, then just discard the packet, and send the latest Ack with expecteded sequence number which is the anticipated sequence number
                 sndpkt = make_packet(0);
                 sndpkt->hdr.ackno = anticipated_sequence;
                 sndpkt->hdr.ctr_flags = ACK;

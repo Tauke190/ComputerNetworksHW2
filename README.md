@@ -70,6 +70,3 @@ This version of TCP comes with the following features:
    - The time taken for file transfer depends on the network delay and uplink/downlink loss.
    - With low downlink loss, there may be no need for retransmissions as higher ACKs can acknowledge all preceding packets.
    - As uplink and downlink loss increase, the time taken for packet transfer will also increase.
-
-Thank you!
-```
